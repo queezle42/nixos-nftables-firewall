@@ -31,6 +31,10 @@ in {
             type = types.bool;
             default = false;
           };
+          parents = mkOption {
+            type = with types; listOf str;
+            default = null;
+          };
           interfaces = mkOption {
             type = with types; listOf str;
             default = [];
@@ -126,6 +130,7 @@ in {
       , localZone
       , parent ? null
       , isRegularZone ? true
+      , parents ? []
       # from dependencyDagOfSubmodule:
       , enable
       , early
@@ -141,11 +146,11 @@ in {
         (optionalString (length interfaces > 0) "oifname { ${concatStringsSep ", " interfaces} }")
         egressExpression
       ];
-      parentZone = mapNullable (parentName: zones."${parentName}") zone.parent;
+      parentZones = map (parentName: zones."${parentName}") (optional zone.parent ++ parents);
     in rec {
       inherit localZone;
-      parent = parentZone;
-      children = filter (x: x.parent.name or "" == name) (attrValues zones);
+      parents = parentZones;
+      children = filter (x: any (parent: parent.name == name) x.parents) sortedZones;
       hasExpressions = (stringLength ingressExpressionRaw > 0) && (stringLength egressExpressionRaw > 0);
       disableForward = localZone && isRegularZone && !hasExpressions;
       ingressExpression = assert localZone || (isRegularZone -> hasExpressions); ingressExpressionRaw;
